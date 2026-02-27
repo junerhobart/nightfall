@@ -37,6 +37,9 @@ public class BreachManager {
     // Creepers navigating toward an explosion target
     private final Map<UUID, Location> creeperTargets = new ConcurrentHashMap<>();
 
+    // How many stuckCheckTicks a creeper has been waiting for friends to clear
+    private final Map<UUID, Integer> creeperWaitTicks = new ConcurrentHashMap<>();
+
     // Per-chunk break count this night
     private final Map<Long, Integer> chunkBreaks = new ConcurrentHashMap<>();
 
@@ -64,6 +67,7 @@ public class BreachManager {
         mobMemories.clear();
         chunkBreaks.clear();
         creeperTargets.clear();
+        creeperWaitTicks.clear();
     }
 
     public void reload() {
@@ -92,6 +96,10 @@ public class BreachManager {
         }
         // Clear creeper assignments for this world
         creeperTargets.keySet().removeIf(id -> {
+            Entity e = plugin.getServer().getEntity(id);
+            return e == null || e.getWorld().equals(world);
+        });
+        creeperWaitTicks.keySet().removeIf(id -> {
             Entity e = plugin.getServer().getEntity(id);
             return e == null || e.getWorld().equals(world);
         });
@@ -237,34 +245,36 @@ public class BreachManager {
                 boolean isStuck = false;
                 boolean losBlocked = false;
 
-                // Normal breach: mob targeting a player, stuck or LOS blocked
                 if (mob.getTarget() instanceof Player target && target.isOnline()
-                        && mem.getBreaksThisChase() < cfg.maxBreaksPerChase) {
-                    int nearBreakers = countBreakersNear(target.getLocation(), cfg.breachTriggerRadius);
-                    if (nearBreakers < cfg.maxBreakersPerPlayer
-                            && isPlayerNear(mob.getLocation(), cfg.breachTriggerRadius)) {
-                        int stuckTicks = mem.getStuckTickCount();
-                        losBlocked = !mob.hasLineOfSight(target);
-                        isStuck = stuckTicks >= cfg.stuckTicks;
+                        && isPlayerNear(mob.getLocation(), cfg.breachTriggerRadius)) {
 
-                        if (isStuck || losBlocked) {
-                            candidate = findCandidate(mob, target);
-                            if (candidate != null && mem.isFailed(candidate)) {
-                                candidate = tryOffsetCandidate(mob, target, mem);
-                            }
-                            if (candidate != null
-                                    && mob.getLocation().distanceSquared(candidate.getLocation()) > reachSq) {
-                                candidate = null;
+                    // Torch in direct path: break instantly, no stuck requirement
+                    if (!cfg.torchHuntBlocks.isEmpty()) {
+                        Block torchInPath = findCandidateInPath(mob, target, cfg.torchHuntBlocks);
+                        if (torchInPath != null && !mem.isFailed(torchInPath)) {
+                            candidate = torchInPath;
+                            isTorchHunt = true;
+                        }
+                    }
+
+                    // Normal wall-breach: only when stuck or LOS blocked
+                    if (candidate == null && mem.getBreaksThisChase() < cfg.maxBreaksPerChase) {
+                        int nearBreakers = countBreakersNear(target.getLocation(), cfg.breachTriggerRadius);
+                        if (nearBreakers < cfg.maxBreakersPerPlayer) {
+                            losBlocked = !mob.hasLineOfSight(target);
+                            isStuck = mem.getStuckTickCount() >= cfg.stuckTicks;
+                            if (isStuck || losBlocked) {
+                                candidate = findCandidate(mob, target);
+                                if (candidate != null && mem.isFailed(candidate)) {
+                                    candidate = tryOffsetCandidate(mob, target, mem);
+                                }
+                                if (candidate != null
+                                        && mob.getLocation().distanceSquared(candidate.getLocation()) > reachSq) {
+                                    candidate = null;
+                                }
                             }
                         }
                     }
-                }
-
-                // Torch hunt: all mobs during night, no player target required
-                if (candidate == null && !cfg.torchHuntBlocks.isEmpty()) {
-                    candidate = findNearbyHuntBlock(mob, cfg);
-                    if (candidate != null && mem.isFailed(candidate)) candidate = null;
-                    if (candidate != null) isTorchHunt = true;
                 }
 
                 if (candidate == null) continue;
@@ -328,8 +338,23 @@ public class BreachManager {
         if (target != null) {
             double distSq = creeper.getLocation().distanceSquared(target);
             if (distSq <= cfg.exploderTriggerRadius * cfg.exploderTriggerRadius) {
-                creeper.ignite();
-                creeperTargets.remove(id);
+                // Wait for nearby friendly mobs to clear before detonating
+                double blastRadius = creeper.getExplosionRadius() + 2.0;
+                int friendsNearby = countMobsNear(target, blastRadius, creeper);
+                int waited = creeperWaitTicks.getOrDefault(id, 0);
+
+                if (friendsNearby > 0 && waited < 50) {
+                    // Back off a step to give mobs room to pass
+                    Vector away = creeper.getLocation().toVector()
+                            .subtract(target.toVector()).normalize();
+                    Location backOff = creeper.getLocation().clone().add(away);
+                    try { creeper.getPathfinder().moveTo(backOff, 0.5); } catch (Exception ignored) {}
+                    creeperWaitTicks.merge(id, 1, Integer::sum);
+                } else {
+                    creeper.ignite();
+                    creeperTargets.remove(id);
+                    creeperWaitTicks.remove(id);
+                }
             } else {
                 try { creeper.getPathfinder().moveTo(target, 1.1); } catch (Exception ignored) {}
             }
@@ -481,23 +506,32 @@ public class BreachManager {
         return null;
     }
 
-    private Block findNearbyHuntBlock(Mob mob, NightfallConfig cfg) {
-        Location mobLoc = mob.getLocation();
-        int r = cfg.torchHuntRadius;
-        Block best = null;
-        double bestDist = Double.MAX_VALUE;
-        for (int dx = -r; dx <= r; dx++) {
-            for (int dy = -1; dy <= 2; dy++) {
-                for (int dz = -r; dz <= r; dz++) {
-                    Block b = mobLoc.getBlock().getRelative(dx, dy, dz);
-                    if (!cfg.torchHuntBlocks.contains(b.getType())) continue;
-                    if (!isBreachable(b, cfg)) continue;
-                    double dist = b.getLocation().distanceSquared(mobLoc);
-                    if (dist < bestDist) { bestDist = dist; best = b; }
-                }
-            }
+    /**
+     * Raytrace from mob eyes toward the player. If the first block hit is in
+     * {@code materials} and is breachable, return it. Used for torch-in-path detection.
+     */
+    private Block findCandidateInPath(Mob mob, Player target, Set<Material> materials) {
+        Location eyeLoc = mob.getEyeLocation();
+        Location targetLoc = target.getLocation().add(0, 1, 0);
+        Vector direction = targetLoc.toVector().subtract(eyeLoc.toVector()).normalize();
+        double distance = eyeLoc.distance(targetLoc);
+        RayTraceResult result = mob.getWorld().rayTraceBlocks(eyeLoc, direction, distance + 1,
+                org.bukkit.FluidCollisionMode.NEVER, false);
+        if (result == null || result.getHitBlock() == null) return null;
+        Block hit = result.getHitBlock();
+        if (!materials.contains(hit.getType())) return null;
+        if (!isBreachable(hit, plugin.getNfConfig())) return null;
+        return hit;
+    }
+
+    private int countMobsNear(Location loc, double radius, Mob exclude) {
+        double radiusSq = radius * radius;
+        int count = 0;
+        for (Mob m : loc.getWorld().getEntitiesByClass(Mob.class)) {
+            if (m == exclude) continue;
+            if (m.getLocation().distanceSquared(loc) <= radiusSq) count++;
         }
-        return best;
+        return count;
     }
 
     private boolean isBreachable(Block block, NightfallConfig cfg) {
