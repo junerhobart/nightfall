@@ -5,14 +5,3 @@ api-version: '1.21'
 description: Makes Minecraft night genuinely dangerous.
 authors:
   - Nightfall
-
-commands:
-  nightfall:
-    description: Nightfall admin commands.
-    usage: /nightfall <reload|debug|status>
-    permission: nightfall.admin
-
-permissions:
-  nightfall.admin:
-    description: Access to /nightfall commands.
-    default: op

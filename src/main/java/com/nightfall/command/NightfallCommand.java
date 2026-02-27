@@ -4,14 +4,11 @@ import com.nightfall.main.NightfallPlugin;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.World;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
-import org.bukkit.command.TabCompleter;
 
 import java.util.List;
 
-public class NightfallCommand implements CommandExecutor, TabCompleter {
+public class NightfallCommand {
 
     private final NightfallPlugin plugin;
 
@@ -19,18 +16,11 @@ public class NightfallCommand implements CommandExecutor, TabCompleter {
         this.plugin = plugin;
     }
 
-    @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!sender.hasPermission("nightfall.admin")) {
-            sender.sendMessage(Component.text("No permission.", NamedTextColor.RED));
-            return true;
-        }
-
+    public void execute(CommandSender sender, String[] args) {
         if (args.length == 0) {
             sendHelp(sender);
-            return true;
+            return;
         }
-
         switch (args[0].toLowerCase()) {
             case "reload" -> {
                 plugin.reload();
@@ -38,15 +28,13 @@ public class NightfallCommand implements CommandExecutor, TabCompleter {
             }
             case "debug" -> {
                 boolean newValue = !plugin.getNfConfig().debug;
-                // Toggle debug in live config -- persisted only until next reload
                 plugin.getNfConfig().debug = newValue;
-                sender.sendMessage(Component.text("[Nightfall] Debug mode: " + (newValue ? "ON" : "OFF"),
+                sender.sendMessage(Component.text("[Nightfall] Debug: " + (newValue ? "ON" : "OFF"),
                         newValue ? NamedTextColor.YELLOW : NamedTextColor.GRAY));
             }
             case "status" -> sendStatus(sender);
             default -> sendHelp(sender);
         }
-        return true;
     }
 
     private void sendHelp(CommandSender sender) {
@@ -68,11 +56,4 @@ public class NightfallCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(Component.text("  Debug: " + plugin.getNfConfig().debug, NamedTextColor.GRAY));
     }
 
-    @Override
-    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (args.length == 1) {
-            return List.of("reload", "debug", "status");
-        }
-        return List.of();
-    }
 }
