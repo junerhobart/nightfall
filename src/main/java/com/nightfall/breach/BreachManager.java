@@ -267,6 +267,7 @@ public class BreachManager {
 
                 NightfallConfig.TierConfig tierCfg = cfg.tiers.get(tier);
                 if (!tierCfg.enabled()) continue;
+                if (!canMobBreachTier(mob, tierCfg)) continue;
 
                 // Start breach
                 mem.setCurrentlyBreaching(true);
@@ -408,5 +409,17 @@ public class BreachManager {
 
     public Map<UUID, BreachEntry> getActiveBreaches() {
         return Collections.unmodifiableMap(activeBreaches);
+    }
+
+    private boolean canMobBreachTier(Mob mob, NightfallConfig.TierConfig tierCfg) {
+        NightfallConfig.RequiredTool req = tierCfg.requiredTool();
+        if (req == NightfallConfig.RequiredTool.NONE) return true;
+        if (mob.getEquipment() == null) return false;
+        String hand = mob.getEquipment().getItemInMainHand().getType().name();
+        return switch (req) {
+            case AXE -> hand.endsWith("_AXE");
+            case PICKAXE -> hand.endsWith("_PICKAXE");
+            default -> true;
+        };
     }
 }

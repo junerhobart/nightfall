@@ -59,7 +59,8 @@ public class NightfallConfig {
     // Debug
     public boolean debug;
 
-    public record TierConfig(boolean enabled, int breakTicks, Set<Material> blocks) {}
+    public enum RequiredTool { NONE, AXE, PICKAXE }
+    public record TierConfig(boolean enabled, int breakTicks, Set<Material> blocks, RequiredTool requiredTool) {}
 
     public NightfallConfig(NightfallPlugin plugin) {
         this.plugin = plugin;
@@ -103,12 +104,22 @@ public class NightfallConfig {
         protectContainers = c.getBoolean("breach.protect-containers", true);
 
         tiers = new HashMap<>();
-        for (int tier = 1; tier <= 3; tier++) {
-            String path = "breach.tiers." + tier;
-            boolean en = c.getBoolean(path + ".enabled", tier < 3);
-            int bt = c.getInt(path + ".break-ticks", 60);
-            Set<Material> blocks = parseMaterials(c.getStringList(path + ".blocks"));
-            tiers.put(tier, new TierConfig(en, bt, blocks));
+        var tiersSection = c.getConfigurationSection("breach.tiers");
+        if (tiersSection != null) {
+            for (String key : tiersSection.getKeys(false)) {
+                try {
+                    int tier = Integer.parseInt(key);
+                    String path = "breach.tiers." + tier;
+                    boolean en = c.getBoolean(path + ".enabled", true);
+                    int bt = c.getInt(path + ".break-ticks", 60);
+                    Set<Material> blocks = parseMaterials(c.getStringList(path + ".blocks"));
+                    String toolStr = c.getString(path + ".required-tool", "none").toUpperCase();
+                    RequiredTool tool;
+                    try { tool = RequiredTool.valueOf(toolStr); }
+                    catch (IllegalArgumentException ex) { tool = RequiredTool.NONE; }
+                    tiers.put(tier, new TierConfig(en, bt, blocks, tool));
+                } catch (NumberFormatException ignored) {}
+            }
         }
 
         maxBreaksPerNight = c.getInt("breach.max-breaks-per-night", 8);
@@ -140,11 +151,12 @@ public class NightfallConfig {
     }
 
     public int getTierForBlock(Material material) {
+        int best = -1;
         for (Map.Entry<Integer, TierConfig> e : tiers.entrySet()) {
             if (e.getValue().enabled() && e.getValue().blocks().contains(material)) {
-                return e.getKey();
+                if (best == -1 || e.getKey() < best) best = e.getKey();
             }
         }
-        return -1;
+        return best;
     }
 }

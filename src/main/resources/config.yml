@@ -1,33 +1,15 @@
-# Nightfall Configuration
-# Paper 1.21.1 | nightfall.admin for commands
-
-# ── Night Window ────────────────────────────────────────────────────────────
 night:
-  # World time ticks for night start/end. Vanilla night = 13000-23000.
   start-tick: 13000
   end-tick: 23000
-  # List of world names to enable Nightfall in. Empty = all worlds.
   enabled-worlds: []
 
-# ── Siege / Damage Multipliers ───────────────────────────────────────────────
 siege:
-  # Multiply outgoing mob melee damage at night (1.0 = no change).
   mob-damage-multiplier: 1.4
-  # Reduce incoming player damage from mobs at night (1.0 = no reduction).
-  # Set to 1.0 to disable. Values < 1.0 make players tankier (not recommended
-  # for hard mode -- set above 1.0 to increase incoming damage instead).
   player-incoming-multiplier: 1.0
-  # Broadcast a title to all players when night begins/ends.
-  announce-night: true
-  announce-day: true
 
-# ── Heat System ─────────────────────────────────────────────────────────────
 heat:
-  # How long (seconds) before a heat node fully decays.
   decay-seconds: 90
-  # Heat nodes within this radius (blocks) are merged into the strongest one.
   merge-radius: 3
-  # Heat generated per event type (arbitrary units, relative to each other).
   sources:
     block-break: 20
     block-place: 10
@@ -35,17 +17,12 @@ heat:
     interact: 8
     shoot-bow: 15
     player-hurt: 30
-  # Radius (blocks) a mob scans for a heat node to pathfind toward.
   mob-scan-radius: 32
-  # How long (seconds) a mob remembers a last-seen player location.
   last-seen-memory-seconds: 20
 
-# ── Light Attraction ────────────────────────────────────────────────────────
 light-attraction:
   enabled: true
-  # Mob scans this radius for light blocks when it has no heat/last-seen target.
   scan-radius: 20
-  # Block types that attract mobs. Must be valid Material names.
   light-blocks:
     - TORCH
     - WALL_TORCH
@@ -58,20 +35,21 @@ light-attraction:
     - SHROOMLIGHT
     - LIGHT
     - CAMPFIRE
-# ── Breach (Block Breaking) ──────────────────────────────────────────────────
+
 breach:
   enabled: true
-  # Radius around the mob's target within which a player must be to trigger breach.
   trigger-radius: 24
-  # Mob must be stuck for this many ticks before attempting a break.
   stuck-ticks: 40
-  # After failing to path for this many ticks, also attempt breach.
   path-fail-ticks: 60
-  # Search this many blocks around the raytrace hit for "easier" entry blocks.
   preference-radius: 2
-  # Block types considered easy entry (searched first in preference mode).
+  prefer-leaves: true
   preference-blocks:
-    # Soft tier first -- mobs always prefer the easiest entry
+    - TORCH
+    - WALL_TORCH
+    - SOUL_TORCH
+    - SOUL_WALL_TORCH
+    - LANTERN
+    - SOUL_LANTERN
     - GLASS
     - GLASS_PANE
     - TINTED_GLASS
@@ -132,7 +110,8 @@ breach:
     - MANGROVE_DOOR
     - CHERRY_DOOR
     - BAMBOO_DOOR
-    - IRON_DOOR
+    - CRIMSON_DOOR
+    - WARPED_DOOR
     - OAK_TRAPDOOR
     - SPRUCE_TRAPDOOR
     - BIRCH_TRAPDOOR
@@ -142,7 +121,8 @@ breach:
     - MANGROVE_TRAPDOOR
     - CHERRY_TRAPDOOR
     - BAMBOO_TRAPDOOR
-    - IRON_TRAPDOOR
+    - CRIMSON_TRAPDOOR
+    - WARPED_TRAPDOOR
     - OAK_FENCE_GATE
     - SPRUCE_FENCE_GATE
     - BIRCH_FENCE_GATE
@@ -152,13 +132,10 @@ breach:
     - MANGROVE_FENCE_GATE
     - CHERRY_FENCE_GATE
     - BAMBOO_FENCE_GATE
-  # Include leaves as preference blocks (thin natural barriers).
-  prefer-leaves: true
-  # Blocks that can NEVER be broken by Nightfall regardless of other settings.
-  # Threshold: iron-tier and above, deepslate variants, and admin blocks.
-  # Containers are always protected separately.
+    - CRIMSON_FENCE_GATE
+    - WARPED_FENCE_GATE
+
   protected-blocks:
-    # Admin / world structure
     - BEDROCK
     - BARRIER
     - REINFORCED_DEEPSLATE
@@ -168,11 +145,9 @@ breach:
     - REPEATING_COMMAND_BLOCK
     - STRUCTURE_BLOCK
     - JIGSAW
-    # Obsidian tier (players use these as hard barriers)
     - OBSIDIAN
     - CRYING_OBSIDIAN
     - ANCIENT_DEBRIS
-    # Deepslate and all variants (hard-tier, requires iron+ pickaxe)
     - DEEPSLATE
     - COBBLED_DEEPSLATE
     - POLISHED_DEEPSLATE
@@ -189,10 +164,8 @@ breach:
     - DEEPSLATE_LAPIS_ORE
     - DEEPSLATE_REDSTONE_ORE
     - DEEPSLATE_COPPER_ORE
-    # Iron-tier doors and trapdoors
     - IRON_DOOR
     - IRON_TRAPDOOR
-    # Metal and mineral blocks
     - IRON_BLOCK
     - GOLD_BLOCK
     - DIAMOND_BLOCK
@@ -213,25 +186,18 @@ breach:
     - REDSTONE_BLOCK
     - COAL_BLOCK
     - AMETHYST_BLOCK
-  # Never break containers (chests, barrels, etc.). Strongly recommended true.
+
   protect-containers: true
 
-  # Break tiers -- scaled to match player hand-break speed.
-  #
-  # Tier 1 (~2s): Soft blocks -- hand-breakable quickly. Wool, glass, dirt,
-  #   leaves, snow, sand, etc. A wool or dirt wall is very easy to breach.
-  # Tier 2 (~4s): Wood/axe tier -- planks, logs, doors, fences, etc.
-  #   A wooden house is a moderate barrier.
-  # Tier 3 (~8s): Stone/pickaxe tier -- stone, bricks, sandstone, terracotta,
-  #   concrete, etc. A stone wall is a serious barrier but not impenetrable.
-  #
-  # Iron-tier, deepslate, and obsidian are in protected-blocks above (unbreachable).
+  # required-tool: none | axe | pickaxe
+  # Mobs must hold the matching tool to breach that tier.
+  # Stone-tier (3) requires a pickaxe -- zombies that pick up iron picks will breach stone walls.
   tiers:
-    1:
+    0:
       enabled: true
-      break-ticks: 40   # ~2 seconds
+      break-ticks: 1
+      required-tool: none
       blocks:
-        # Light sources
         - TORCH
         - WALL_TORCH
         - SOUL_TORCH
@@ -239,7 +205,11 @@ breach:
         - LANTERN
         - SOUL_LANTERN
         - CANDLE
-        # Glass
+    1:
+      enabled: true
+      break-ticks: 40
+      required-tool: none
+      blocks:
         - GLASS
         - GLASS_PANE
         - TINTED_GLASS
@@ -275,7 +245,6 @@ breach:
         - GREEN_STAINED_GLASS_PANE
         - RED_STAINED_GLASS_PANE
         - BLACK_STAINED_GLASS_PANE
-        # Wool (all colors)
         - WHITE_WOOL
         - ORANGE_WOOL
         - MAGENTA_WOOL
@@ -292,7 +261,6 @@ breach:
         - GREEN_WOOL
         - RED_WOOL
         - BLACK_WOOL
-        # Carpet (all colors)
         - WHITE_CARPET
         - ORANGE_CARPET
         - MAGENTA_CARPET
@@ -309,7 +277,6 @@ breach:
         - GREEN_CARPET
         - RED_CARPET
         - BLACK_CARPET
-        # Leaves
         - OAK_LEAVES
         - SPRUCE_LEAVES
         - BIRCH_LEAVES
@@ -320,7 +287,6 @@ breach:
         - CHERRY_LEAVES
         - AZALEA_LEAVES
         - FLOWERING_AZALEA_LEAVES
-        # Dirt and soil
         - DIRT
         - GRASS_BLOCK
         - COARSE_DIRT
@@ -329,15 +295,12 @@ breach:
         - MYCELIUM
         - MUD
         - MUDDY_MANGROVE_ROOTS
-        # Sand and gravel
         - SAND
         - RED_SAND
         - GRAVEL
-        # Snow and ice
         - SNOW_BLOCK
         - ICE
         - PACKED_ICE
-        # Soft plant/organic blocks
         - HAY_BLOCK
         - SPONGE
         - WET_SPONGE
@@ -346,7 +309,6 @@ breach:
         - JACK_O_LANTERN
         - MELON
         - DRIED_KELP_BLOCK
-        # Beds (all colors)
         - WHITE_BED
         - ORANGE_BED
         - MAGENTA_BED
@@ -365,9 +327,9 @@ breach:
         - BLACK_BED
     2:
       enabled: true
-      break-ticks: 80   # ~4 seconds
+      break-ticks: 80
+      required-tool: none
       blocks:
-        # Wood planks (all types)
         - OAK_PLANKS
         - SPRUCE_PLANKS
         - BIRCH_PLANKS
@@ -379,7 +341,6 @@ breach:
         - BAMBOO_PLANKS
         - CRIMSON_PLANKS
         - WARPED_PLANKS
-        # Logs and stripped logs (all types)
         - OAK_LOG
         - SPRUCE_LOG
         - BIRCH_LOG
@@ -422,7 +383,6 @@ breach:
         - STRIPPED_CHERRY_WOOD
         - STRIPPED_CRIMSON_HYPHAE
         - STRIPPED_WARPED_HYPHAE
-        # Wood doors (all types)
         - OAK_DOOR
         - SPRUCE_DOOR
         - BIRCH_DOOR
@@ -434,7 +394,6 @@ breach:
         - BAMBOO_DOOR
         - CRIMSON_DOOR
         - WARPED_DOOR
-        # Wood trapdoors (all types)
         - OAK_TRAPDOOR
         - SPRUCE_TRAPDOOR
         - BIRCH_TRAPDOOR
@@ -446,7 +405,6 @@ breach:
         - BAMBOO_TRAPDOOR
         - CRIMSON_TRAPDOOR
         - WARPED_TRAPDOOR
-        # Fence gates (all types)
         - OAK_FENCE_GATE
         - SPRUCE_FENCE_GATE
         - BIRCH_FENCE_GATE
@@ -458,7 +416,6 @@ breach:
         - BAMBOO_FENCE_GATE
         - CRIMSON_FENCE_GATE
         - WARPED_FENCE_GATE
-        # Fences (all types)
         - OAK_FENCE
         - SPRUCE_FENCE
         - BIRCH_FENCE
@@ -470,7 +427,6 @@ breach:
         - BAMBOO_FENCE
         - CRIMSON_FENCE
         - WARPED_FENCE
-        # Wood slabs (all types)
         - OAK_SLAB
         - SPRUCE_SLAB
         - BIRCH_SLAB
@@ -482,7 +438,6 @@ breach:
         - BAMBOO_SLAB
         - CRIMSON_SLAB
         - WARPED_SLAB
-        # Wood stairs (all types)
         - OAK_STAIRS
         - SPRUCE_STAIRS
         - BIRCH_STAIRS
@@ -494,7 +449,6 @@ breach:
         - BAMBOO_STAIRS
         - CRIMSON_STAIRS
         - WARPED_STAIRS
-        # Misc wood-tier
         - BOOKSHELF
         - CHISELED_BOOKSHELF
         - NOTE_BLOCK
@@ -510,9 +464,9 @@ breach:
         - LADDER
     3:
       enabled: true
-      break-ticks: 160  # ~8 seconds
+      break-ticks: 160
+      required-tool: pickaxe
       blocks:
-        # Stone variants
         - STONE
         - SMOOTH_STONE
         - COBBLESTONE
@@ -531,12 +485,10 @@ breach:
         - COBBLESTONE_WALL
         - MOSSY_COBBLESTONE_WALL
         - STONE_BRICK_WALL
-        # Bricks
         - BRICKS
         - BRICK_SLAB
         - BRICK_STAIRS
         - BRICK_WALL
-        # Sandstone
         - SANDSTONE
         - SMOOTH_SANDSTONE
         - CHISELED_SANDSTONE
@@ -557,7 +509,6 @@ breach:
         - RED_SANDSTONE_STAIRS
         - SMOOTH_RED_SANDSTONE_STAIRS
         - RED_SANDSTONE_WALL
-        # Terracotta (all colors)
         - TERRACOTTA
         - WHITE_TERRACOTTA
         - ORANGE_TERRACOTTA
@@ -591,7 +542,6 @@ breach:
         - GREEN_GLAZED_TERRACOTTA
         - RED_GLAZED_TERRACOTTA
         - BLACK_GLAZED_TERRACOTTA
-        # Concrete (all colors)
         - WHITE_CONCRETE
         - ORANGE_CONCRETE
         - MAGENTA_CONCRETE
@@ -608,7 +558,6 @@ breach:
         - GREEN_CONCRETE
         - RED_CONCRETE
         - BLACK_CONCRETE
-        # Prismarine
         - PRISMARINE
         - PRISMARINE_BRICKS
         - DARK_PRISMARINE
@@ -619,7 +568,6 @@ breach:
         - PRISMARINE_BRICK_STAIRS
         - DARK_PRISMARINE_STAIRS
         - PRISMARINE_WALL
-        # Nether
         - NETHER_BRICKS
         - RED_NETHER_BRICKS
         - CRACKED_NETHER_BRICKS
@@ -630,7 +578,6 @@ breach:
         - RED_NETHER_BRICK_STAIRS
         - NETHER_BRICK_WALL
         - RED_NETHER_BRICK_WALL
-        # Stone-adjacent
         - DIORITE
         - POLISHED_DIORITE
         - ANDESITE
@@ -652,7 +599,6 @@ breach:
         - DIORITE_WALL
         - ANDESITE_WALL
         - GRANITE_WALL
-        # End and misc stone
         - END_STONE
         - END_STONE_BRICKS
         - END_STONE_BRICK_SLAB
@@ -671,7 +617,6 @@ breach:
         - SMOOTH_QUARTZ_SLAB
         - QUARTZ_STAIRS
         - SMOOTH_QUARTZ_STAIRS
-        # Tuff and calcite (overworld hard stone)
         - TUFF
         - CALCITE
         - TUFF_BRICKS
@@ -686,25 +631,17 @@ breach:
         - TUFF_WALL
         - POLISHED_TUFF_WALL
         - TUFF_BRICK_WALL
-        # Mud bricks
         - MUD_BRICKS
         - MUD_BRICK_SLAB
         - MUD_BRICK_STAIRS
         - MUD_BRICK_WALL
 
-  # Per-mob limits.
   max-breaks-per-night: 8
   max-breaks-per-chase: 3
-  # Per-chunk limits (resets each night).
   max-chunk-breaks-per-night: 20
-  # Max concurrent mobs actively breaking blocks per nearby player.
   max-breakers-per-player: 3
-  # Global cap on break-attempt ticks processed per server tick.
   max-break-ticks-per-tick: 10
-  # Global cap on new breach initiations per second.
   max-new-breaches-per-second: 6
-  # Memory: how long (seconds) a mob remembers a failed candidate block.
   failed-block-cooldown-seconds: 15
 
-# ── Debug ────────────────────────────────────────────────────────────────────
 debug: false
