@@ -34,7 +34,7 @@ public final class NightfallPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new BlockEventListener(this), this);
         getServer().getPluginManager().registerEvents(new CombatListener(this), this);
         getServer().getPluginManager().registerEvents(new PlayerActivityListener(this), this);
-        getServer().getPluginManager().registerEvents(new WorldListener(this), this);
+        getServer().getPluginManager().registerEvents(new WorldListener(), this);
 
         // Register command
         NightfallCommand cmd = new NightfallCommand(this);

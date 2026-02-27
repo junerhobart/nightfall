@@ -3,7 +3,6 @@ package com.nightfall.heat;
 import com.nightfall.main.NightfallPlugin;
 import org.bukkit.Location;
 import org.bukkit.World;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 
@@ -101,15 +100,11 @@ public class HeatManager {
     }
 
     public void clearLastSeen(UUID mobId) {
-        if (mobId != null) lastSeenMap.remove(mobId);
+        lastSeenMap.remove(mobId);
     }
 
-    /** Remove last-seen entries for all mobs in the given world (called on day begin). */
     public void clearLastSeenForWorld(World world) {
-        lastSeenMap.keySet().removeIf(id -> {
-            LastSeen ls = lastSeenMap.get(id);
-            return ls != null && ls.location().getWorld().equals(world);
-        });
+        lastSeenMap.values().removeIf(ls -> ls.location().getWorld().equals(world));
     }
 
     private void runDecay() {
