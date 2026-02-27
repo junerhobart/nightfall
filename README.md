@@ -11,7 +11,7 @@ Nightfall adds adaptive mob AI, heat-based targeting, and progressive block-brea
 - **Light attraction** -- mobs without a target drift toward torches and light sources at night.
 - **Torch hate** -- mobs prioritize breaking light sources that block their line of sight.
 - **Breach mechanics** -- mobs stuck outside your base will progressively break through doors, glass, planks, and more. Block-breaking is telegraphed with crack animations and sound.
-- **Ward protection** -- place Crying Obsidian to create a protected zone mobs cannot breach.
+- **Obsidian protection** -- obsidian and crying obsidian cannot be broken by mobs.
 - **Strict performance caps** -- per-mob, per-chunk, and global rate limits. No large scans every tick.
 
 ## Requirements
@@ -34,8 +34,6 @@ All behavior is configurable in `plugins/Nightfall/config.yml`. Key options:
 | `siege.mob-damage-multiplier` | `1.4` | Outgoing mob damage multiplier at night |
 | `breach.enabled` | `true` | Enable block-breaking |
 | `breach.max-breaks-per-night` | `8` | Max blocks a single mob breaks per night |
-| `ward.block-type` | `CRYING_OBSIDIAN` | Block type that creates a protected zone |
-| `ward.radius` | `8` | Protection radius in blocks |
 
 ## Commands
 
@@ -46,7 +44,3 @@ All behavior is configurable in `plugins/Nightfall/config.yml`. Key options:
 | `/nightfall status` | Show night state and active breaches |
 
 Permission: `nightfall.admin` (default: op)
-
-## License
-
-[Mass Plugin License](LICENSE) -- free to use on any server, credit required for forks, no redistribution on plugin platforms without permission.
