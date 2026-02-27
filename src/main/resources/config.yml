@@ -1,0 +1,235 @@
+# Nightfall Configuration
+# Paper 1.21.1 | nightfall.admin for commands
+
+# ── Night Window ────────────────────────────────────────────────────────────
+night:
+  # World time ticks for night start/end. Vanilla night = 13000-23000.
+  start-tick: 13000
+  end-tick: 23000
+  # List of world names to enable Nightfall in. Empty = all worlds.
+  enabled-worlds: []
+
+# ── Siege / Damage Multipliers ───────────────────────────────────────────────
+siege:
+  # Multiply outgoing mob melee damage at night (1.0 = no change).
+  mob-damage-multiplier: 1.4
+  # Reduce incoming player damage from mobs at night (1.0 = no reduction).
+  # Set to 1.0 to disable. Values < 1.0 make players tankier (not recommended
+  # for hard mode -- set above 1.0 to increase incoming damage instead).
+  player-incoming-multiplier: 1.0
+  # Broadcast a title to all players when night begins/ends.
+  announce-night: true
+  announce-day: true
+
+# ── Heat System ─────────────────────────────────────────────────────────────
+heat:
+  # How long (seconds) before a heat node fully decays.
+  decay-seconds: 90
+  # Heat nodes within this radius (blocks) are merged into the strongest one.
+  merge-radius: 3
+  # Heat generated per event type (arbitrary units, relative to each other).
+  sources:
+    block-break: 20
+    block-place: 10
+    sprint-start: 5
+    interact: 8
+    shoot-bow: 15
+    player-hurt: 30
+  # Radius (blocks) a mob scans for a heat node to pathfind toward.
+  mob-scan-radius: 32
+  # How long (seconds) a mob remembers a last-seen player location.
+  last-seen-memory-seconds: 20
+
+# ── Light Attraction ────────────────────────────────────────────────────────
+light-attraction:
+  enabled: true
+  # Mob scans this radius for light blocks when it has no heat/last-seen target.
+  scan-radius: 20
+  # Block types that attract mobs. Must be valid Material names.
+  light-blocks:
+    - TORCH
+    - WALL_TORCH
+    - SOUL_TORCH
+    - SOUL_WALL_TORCH
+    - LANTERN
+    - SOUL_LANTERN
+    - GLOWSTONE
+    - SEA_LANTERN
+    - SHROOMLIGHT
+    - LIGHT
+    - CAMPFIRE
+  # If a raytrace to the target is blocked by a light block and this is true,
+  # the mob will prioritize breaking that block first.
+  torch-hate: true
+
+# ── Breach (Block Breaking) ──────────────────────────────────────────────────
+breach:
+  enabled: true
+  # Radius around the mob's target within which a player must be to trigger breach.
+  trigger-radius: 24
+  # Mob must be stuck for this many ticks before attempting a break.
+  stuck-ticks: 40
+  # After failing to path for this many ticks, also attempt breach.
+  path-fail-ticks: 60
+  # Search this many blocks around the raytrace hit for "easier" entry blocks.
+  preference-radius: 2
+  # Block types considered easy entry (searched first in preference mode).
+  preference-blocks:
+    - GLASS
+    - GLASS_PANE
+    - OAK_DOOR
+    - SPRUCE_DOOR
+    - BIRCH_DOOR
+    - JUNGLE_DOOR
+    - ACACIA_DOOR
+    - DARK_OAK_DOOR
+    - MANGROVE_DOOR
+    - CHERRY_DOOR
+    - BAMBOO_DOOR
+    - IRON_DOOR
+    - OAK_TRAPDOOR
+    - SPRUCE_TRAPDOOR
+    - BIRCH_TRAPDOOR
+    - JUNGLE_TRAPDOOR
+    - ACACIA_TRAPDOOR
+    - DARK_OAK_TRAPDOOR
+    - MANGROVE_TRAPDOOR
+    - CHERRY_TRAPDOOR
+    - BAMBOO_TRAPDOOR
+    - IRON_TRAPDOOR
+    - OAK_FENCE_GATE
+    - SPRUCE_FENCE_GATE
+    - BIRCH_FENCE_GATE
+    - JUNGLE_FENCE_GATE
+    - ACACIA_FENCE_GATE
+    - DARK_OAK_FENCE_GATE
+    - MANGROVE_FENCE_GATE
+    - CHERRY_FENCE_GATE
+    - BAMBOO_FENCE_GATE
+  # Include leaves as preference blocks (thin natural barriers).
+  prefer-leaves: false
+  # Blocks that can never be broken by Nightfall, regardless of other settings.
+  # Containers are always protected. Add extra types here.
+  protected-blocks:
+    - BEDROCK
+    - BARRIER
+    - OBSIDIAN
+    - CRYING_OBSIDIAN
+    - REINFORCED_DEEPSLATE
+    - END_PORTAL_FRAME
+    - COMMAND_BLOCK
+    - CHAIN_COMMAND_BLOCK
+    - REPEATING_COMMAND_BLOCK
+    - STRUCTURE_BLOCK
+    - JIGSAW
+  # Never break containers (chests, barrels, etc.). Strongly recommended true.
+  protect-containers: true
+
+  # Break tiers: ticks required to break one block of that tier.
+  # Tier 3 is disabled by default (set enabled: false).
+  tiers:
+    1:
+      enabled: true
+      break-ticks: 60   # ~3 seconds
+      blocks:
+        - TORCH
+        - WALL_TORCH
+        - SOUL_TORCH
+        - SOUL_WALL_TORCH
+        - LANTERN
+        - SOUL_LANTERN
+        - OAK_PLANKS
+        - SPRUCE_PLANKS
+        - BIRCH_PLANKS
+        - JUNGLE_PLANKS
+        - ACACIA_PLANKS
+        - DARK_OAK_PLANKS
+        - MANGROVE_PLANKS
+        - CHERRY_PLANKS
+        - BAMBOO_PLANKS
+        - GLASS
+        - GLASS_PANE
+        - OAK_DOOR
+        - SPRUCE_DOOR
+        - BIRCH_DOOR
+        - JUNGLE_DOOR
+        - ACACIA_DOOR
+        - DARK_OAK_DOOR
+        - MANGROVE_DOOR
+        - CHERRY_DOOR
+        - BAMBOO_DOOR
+        - OAK_TRAPDOOR
+        - SPRUCE_TRAPDOOR
+        - BIRCH_TRAPDOOR
+        - JUNGLE_TRAPDOOR
+        - ACACIA_TRAPDOOR
+        - DARK_OAK_TRAPDOOR
+        - MANGROVE_TRAPDOOR
+        - CHERRY_TRAPDOOR
+        - BAMBOO_TRAPDOOR
+        - OAK_FENCE_GATE
+        - SPRUCE_FENCE_GATE
+        - BIRCH_FENCE_GATE
+        - JUNGLE_FENCE_GATE
+        - ACACIA_FENCE_GATE
+        - DARK_OAK_FENCE_GATE
+        - MANGROVE_FENCE_GATE
+        - CHERRY_FENCE_GATE
+        - BAMBOO_FENCE_GATE
+    2:
+      enabled: true
+      break-ticks: 120  # ~6 seconds
+      blocks:
+        - STONE
+        - COBBLESTONE
+        - STONE_BRICKS
+        - MOSSY_COBBLESTONE
+        - MOSSY_STONE_BRICKS
+        - BRICKS
+        - SANDSTONE
+        - RED_SANDSTONE
+        - IRON_DOOR
+        - IRON_TRAPDOOR
+        - OAK_LOG
+        - SPRUCE_LOG
+        - BIRCH_LOG
+        - JUNGLE_LOG
+        - ACACIA_LOG
+        - DARK_OAK_LOG
+        - MANGROVE_LOG
+        - CHERRY_LOG
+    3:
+      enabled: false
+      break-ticks: 300  # ~15 seconds
+      blocks:
+        - DEEPSLATE
+        - COBBLED_DEEPSLATE
+        - DEEPSLATE_BRICKS
+        - DEEPSLATE_TILES
+        - POLISHED_DEEPSLATE
+
+  # Per-mob limits.
+  max-breaks-per-night: 8
+  max-breaks-per-chase: 3
+  # Per-chunk limits (resets each night).
+  max-chunk-breaks-per-night: 20
+  # Max concurrent mobs actively breaking blocks per nearby player.
+  max-breakers-per-player: 3
+  # Global cap on break-attempt ticks processed per server tick.
+  max-break-ticks-per-tick: 10
+  # Global cap on new breach initiations per second.
+  max-new-breaches-per-second: 6
+  # Memory: how long (seconds) a mob remembers a failed candidate block.
+  failed-block-cooldown-seconds: 15
+
+# ── Ward Protection ──────────────────────────────────────────────────────────
+ward:
+  enabled: true
+  block-type: CRYING_OBSIDIAN
+  # Radius (blocks) protected around each ward block.
+  radius: 8
+  # How often (seconds) to refresh ward cache for each loaded chunk.
+  refresh-interval-seconds: 120
+
+# ── Debug ────────────────────────────────────────────────────────────────────
+debug: false

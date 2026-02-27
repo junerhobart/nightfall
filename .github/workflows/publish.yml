@@ -1,0 +1,91 @@
+name: Publish
+
+on:
+  release:
+    types: [ published ]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version tag (e.g. 1.2)
+        required: true
+
+jobs:
+  publish:
+    name: Publish to Modrinth
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ github.event.release.tag_name || inputs.version }}
+      RELEASE_URL: ${{ github.event.release.html_url || '' }}
+      RELEASE_NAME: ${{ github.event.release.name || inputs.version }}
+      CHANGELOG: ${{ github.event.release.body || '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: 21
+          distribution: temurin
+          cache: maven
+
+      - name: Set version
+        run: mvn -B versions:set -DnewVersion=${{ env.VERSION }} -DgenerateBackupPoms=false
+
+      - name: Build
+        run: mvn -B clean package --file pom.xml
+
+      - name: Publish to Modrinth
+        if: github.event_name == 'release'
+        uses: cloudnode-pro/modrinth-publish@v2
+        with:
+          token: ${{ secrets.MODRINTH_TOKEN }}
+          project: SkKkQ2UT
+          name: ${{ env.RELEASE_NAME }}
+          version: ${{ env.VERSION }}
+          changelog: ${{ env.CHANGELOG }}
+          loaders: paper
+          game-versions: 1.21.11
+          files: target/Nightfall-${{ env.VERSION }}.jar
+
+      - name: Notify Discord
+        if: success()
+        continue-on-error: true
+        run: |
+          python3 -c "
+          import urllib.request, json, os, sys, glob
+          webhook = os.environ.get('DISCORD_WEBHOOK', '').strip()
+          if not webhook:
+            print('No webhook configured, skipping.')
+            sys.exit(0)
+          changelog = os.environ.get('CHANGELOG', '').strip()
+          release_url = os.environ.get('RELEASE_URL', '').strip() or 'https://github.com/\${{ github.repository }}/releases'
+          version = os.environ.get('VERSION', '')
+          project_name = 'Nightfall'
+          parts = [f'**{project_name} {version} has been released!**']
+          if changelog:
+            parts.append(changelog)
+          links = [f'<{release_url}>']
+          for key in ['MODRINTH_PAGE_URL']:  # hardcoded above in env
+            val = os.environ.get(key, '').strip()
+            if val:
+              links.append(f'<{val}>')
+          parts.append(chr(10).join(links))
+          content = (chr(10) + chr(10)).join(parts)
+          thread_id = os.environ.get('DISCORD_THREAD_ID', '').strip()
+          url = webhook + ('&' if '?' in webhook else '?') + 'thread_id=' + thread_id if thread_id else webhook
+          body = json.dumps({'content': content}).encode()
+          headers = {'Content-Type': 'application/json', 'User-Agent': 'Nightfall-GitHubAction/1.0'}
+          req = urllib.request.Request(url, data=body, headers=headers)
+          try:
+            res = urllib.request.urlopen(req)
+            print('Discord notified. Status:', res.status)
+          except urllib.error.HTTPError as e:
+            print('Discord error:', e.code, e.reason, e.read().decode())
+            sys.exit(1)
+          "
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          DISCORD_THREAD_ID: "1476909518071009424"
+          VERSION: ${{ env.VERSION }}
+          RELEASE_URL: ${{ env.RELEASE_URL }}
+          CHANGELOG: ${{ env.CHANGELOG }}
+          MODRINTH_PAGE_URL: https://modrinth.com/project/SkKkQ2UT

@@ -1,0 +1,35 @@
+name: Sync README
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'README.md'
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update Modrinth description
+        run: |
+          python3 -c "
+          import urllib.request, json, os
+          readme = open('README.md').read()
+          project_id = os.environ['MODRINTH_PROJECT_ID']
+          req = urllib.request.Request(
+            f'https://api.modrinth.com/v2/project/{project_id}',
+            data=json.dumps({'body': readme}).encode(),
+            headers={
+              'Content-Type': 'application/json',
+              'Authorization': os.environ['MODRINTH_TOKEN'],
+              'User-Agent': 'Nightfall-GitHubAction/1.0'
+            },
+            method='PATCH'
+          )
+          print('Status:', urllib.request.urlopen(req).status)
+          "
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          MODRINTH_PROJECT_ID: SkKkQ2UT

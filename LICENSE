@@ -1,0 +1,26 @@
+Mass Plugin License
+Copyright (c) 2026 junehobart
+
+Permission is hereby granted to use this software freely on any Minecraft server,
+private or public, without modification.
+
+You MAY:
+  - Run this plugin on your server.
+  - Fork and modify this software for personal or server use.
+  - Share your modified version publicly, provided you:
+      (a) clearly state that your work is derived from this project,
+      (b) credit the original author (junehobart), and
+      (c) include a link to the original repository.
+
+You MAY NOT:
+  - Claim this software, or any unmodified version of it, as your own work.
+  - Upload or distribute this software (unmodified or superficially modified)
+    on public resource platforms such as Modrinth, CurseForge, Spigot Resource
+    Manager, Hangar, or any equivalent site without explicit written permission
+    from the copyright holder.
+  - Remove or alter this license notice from any copy or fork.
+  - Sell this software or charge for access to it.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR
+OTHER LIABILITY ARISING FROM THE USE OF THIS SOFTWARE.
