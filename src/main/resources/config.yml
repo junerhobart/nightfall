@@ -224,7 +224,7 @@ breach:
   max-reach-distance: 2.5
 
   # Proactive torch/light hunting. Mobs will break these blocks on sight even when not stuck.
-  torch-hunt-radius: 3
+  torch-hunt-radius: 5
   torch-hunt-blocks:
     - TORCH
     - WALL_TORCH

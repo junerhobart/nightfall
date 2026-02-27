@@ -34,6 +34,9 @@ public class BreachManager {
     // Per-mob memory
     private final Map<UUID, MobMemory> mobMemories = new ConcurrentHashMap<>();
 
+    // Mobs pathfinding toward a torch/light block before breaking it
+    private final Map<UUID, Block> torchTargets = new ConcurrentHashMap<>();
+
     // Creepers navigating toward an explosion target
     private final Map<UUID, Location> creeperTargets = new ConcurrentHashMap<>();
 
@@ -66,6 +69,7 @@ public class BreachManager {
         mobBreachTarget.clear();
         mobMemories.clear();
         chunkBreaks.clear();
+        torchTargets.clear();
         creeperTargets.clear();
         creeperWaitTicks.clear();
     }
@@ -94,7 +98,11 @@ public class BreachManager {
             for (UUID id : breach.getParticipants()) releaseMob(id);
             it.remove();
         }
-        // Clear creeper assignments for this world
+        // Clear per-mob assignments for this world
+        torchTargets.keySet().removeIf(id -> {
+            Entity e = plugin.getServer().getEntity(id);
+            return e == null || e.getWorld().equals(world);
+        });
         creeperTargets.keySet().removeIf(id -> {
             Entity e = plugin.getServer().getEntity(id);
             return e == null || e.getWorld().equals(world);
@@ -237,23 +245,53 @@ public class BreachManager {
                 if (!cfg.breakerMobs.isEmpty() && !cfg.breakerMobs.contains(mob.getType())) continue;
 
                 if (mem.isCurrentlyBreaching()) continue;
-                if (mem.getBreaksThisNight() >= cfg.maxBreaksPerNight) continue;
-                if (newBreachesThisSecond >= cfg.maxNewBreachesPerSecond) break;
 
                 Block candidate = null;
                 boolean isTorchHunt = false;
 
-                // Torch in path: no player target required.
-                // Use player direction when available, otherwise mob's own facing direction.
+                // Torch hunt: scan radius, pathfind to torch, break when adjacent.
+                // No nightly break limit applies to torch hunts.
                 if (!cfg.torchHuntBlocks.isEmpty()) {
-                    Block torchInPath = (mob.getTarget() instanceof Player tp)
-                            ? findCandidateInPath(mob, tp, cfg.torchHuntBlocks)
-                            : findCandidateInFacingDir(mob, cfg.torchHuntBlocks);
-                    if (torchInPath != null && !mem.isFailed(torchInPath)) {
-                        candidate = torchInPath;
-                        isTorchHunt = true;
+                    Block tgt = torchTargets.get(id);
+
+                    // Drop stale target (already broken or invalid)
+                    if (tgt != null && (tgt.getType().isAir()
+                            || !cfg.torchHuntBlocks.contains(tgt.getType()))) {
+                        torchTargets.remove(id);
+                        tgt = null;
+                    }
+
+                    // Find a new torch to chase if we don't have one
+                    if (tgt == null) {
+                        Block nearby = findNearbyHuntBlock(mob, cfg);
+                        if (nearby != null && !mem.isFailed(nearby)) {
+                            torchTargets.put(id, nearby);
+                            tgt = nearby;
+                        }
+                    }
+
+                    if (tgt != null) {
+                        double distSq = mob.getLocation()
+                                .distanceSquared(tgt.getLocation().add(0.5, 0, 0.5));
+                        if (distSq <= 2.25) {
+                            // Adjacent -- start the breach now
+                            candidate = tgt;
+                            isTorchHunt = true;
+                            torchTargets.remove(id);
+                        } else {
+                            // Walk toward the torch; skip wall-breach logic for this tick
+                            try {
+                                mob.getPathfinder().moveTo(
+                                        tgt.getLocation().add(0.5, 0, 0.5), 1.1);
+                            } catch (Exception ignored) {}
+                            continue;
+                        }
                     }
                 }
+
+                // Wall-breach: subject to nightly and per-second limits
+                if (candidate == null && (mem.getBreaksThisNight() >= cfg.maxBreaksPerNight
+                        || newBreachesThisSecond >= cfg.maxNewBreachesPerSecond)) continue;
 
                 // Wall-breach: only when targeting a player and stuck or LOS blocked
                 if (candidate == null && mob.getTarget() instanceof Player target && target.isOnline()
@@ -399,9 +437,10 @@ public class BreachManager {
         MobMemory mem = mobMemories.get(mobId);
         if (mem != null) {
             mem.setCurrentlyBreaching(false);
-            mem.resetStuck(); // prevent immediate re-breach while still frozen in place
+            mem.resetStuck();
         }
         mobBreachTarget.remove(mobId);
+        torchTargets.remove(mobId);
     }
 
     private void cancelVisual(Block block) {
@@ -423,9 +462,8 @@ public class BreachManager {
         chunkBreaks.merge(chunkKey(block.getChunk()), 1, Integer::sum);
         for (UUID mobId : breach.getParticipants()) {
             MobMemory mem = mobMemories.get(mobId);
-            if (mem != null) {
-                if (breach.isTorchHunt()) mem.recordTorchBreak();
-                else mem.recordBreak();
+            if (mem != null && !breach.isTorchHunt()) {
+                mem.recordBreak();
             }
             releaseMob(mobId);
         }
@@ -492,50 +530,38 @@ public class BreachManager {
         return null;
     }
 
-    private static final org.bukkit.block.BlockFace[] CARDINAL_FACES = {
-        org.bukkit.block.BlockFace.NORTH, org.bukkit.block.BlockFace.SOUTH,
-        org.bukkit.block.BlockFace.EAST,  org.bukkit.block.BlockFace.WEST,
-        org.bukkit.block.BlockFace.UP,    org.bukkit.block.BlockFace.DOWN
-    };
-
-    /**
-     * Raytrace in the mob's facing direction (no player target needed).
-     * Checks the first hit block AND its faces -- wall torches are always
-     * mounted on the solid block the raytrace hits, not the torch itself.
-     */
-    private Block findCandidateInFacingDir(Mob mob, Set<Material> materials) {
+    /** Scan a radius around the mob for the nearest torch/light block with clear line of sight. */
+    private Block findNearbyHuntBlock(Mob mob, NightfallConfig cfg) {
         Location eyeLoc = mob.getEyeLocation();
-        Vector direction = eyeLoc.getDirection();
-        RayTraceResult result = mob.getWorld().rayTraceBlocks(eyeLoc, direction, 4.0,
-                org.bukkit.FluidCollisionMode.NEVER, false);
-        if (result == null || result.getHitBlock() == null) return null;
-        return torchOnOrAdjacentTo(result.getHitBlock(), materials);
-    }
-
-    /**
-     * Raytrace from mob eyes toward the player. Checks the first hit block AND
-     * its faces for attached torches/light sources.
-     */
-    private Block findCandidateInPath(Mob mob, Player target, Set<Material> materials) {
-        Location eyeLoc = mob.getEyeLocation();
-        Location targetLoc = target.getLocation().add(0, 1, 0);
-        Vector direction = targetLoc.toVector().subtract(eyeLoc.toVector()).normalize();
-        double distance = eyeLoc.distance(targetLoc);
-        RayTraceResult result = mob.getWorld().rayTraceBlocks(eyeLoc, direction, distance + 1,
-                org.bukkit.FluidCollisionMode.NEVER, false);
-        if (result == null || result.getHitBlock() == null) return null;
-        return torchOnOrAdjacentTo(result.getHitBlock(), materials);
-    }
-
-    /** Returns the hit block if it's a torch, otherwise checks all six faces for one. */
-    private Block torchOnOrAdjacentTo(Block hit, Set<Material> materials) {
-        NightfallConfig cfg = plugin.getNfConfig();
-        if (materials.contains(hit.getType()) && isBreachable(hit, cfg)) return hit;
-        for (org.bukkit.block.BlockFace face : CARDINAL_FACES) {
-            Block adj = hit.getRelative(face);
-            if (materials.contains(adj.getType()) && isBreachable(adj, cfg)) return adj;
+        Location mobLoc = mob.getLocation();
+        int r = cfg.torchHuntRadius;
+        Block best = null;
+        double bestDist = Double.MAX_VALUE;
+        for (int dx = -r; dx <= r; dx++) {
+            for (int dy = -1; dy <= 2; dy++) {
+                for (int dz = -r; dz <= r; dz++) {
+                    Block b = mobLoc.getBlock().getRelative(dx, dy, dz);
+                    if (!cfg.torchHuntBlocks.contains(b.getType())) continue;
+                    if (!isBreachable(b, cfg)) continue;
+                    double dist = b.getLocation().distanceSquared(mobLoc);
+                    if (dist >= bestDist) continue;
+                    // Reject torches hidden behind solid walls
+                    Location torchCenter = b.getLocation().add(0.5, 0.5, 0.5);
+                    Vector dir = torchCenter.toVector().subtract(eyeLoc.toVector());
+                    double len = dir.length();
+                    if (len > 0.5) {
+                        RayTraceResult hit = mob.getWorld().rayTraceBlocks(
+                                eyeLoc, dir.normalize(), len,
+                                org.bukkit.FluidCollisionMode.NEVER, true);
+                        // A hit means a solid block is between the mob and the torch
+                        if (hit != null && hit.getHitBlock() != null) continue;
+                    }
+                    bestDist = dist;
+                    best = b;
+                }
+            }
         }
-        return null;
+        return best;
     }
 
     private int countMobsNear(Location loc, double radius, Mob exclude) {
