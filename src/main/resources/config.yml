@@ -221,7 +221,7 @@ breach:
       required-tool: pickaxe
 
   # Max distance (blocks) from the mob to the candidate block. Prevents breaking blocks across the room.
-  max-reach-distance: 4.0
+  max-reach-distance: 2.5
 
   # Proactive torch/light hunting. Mobs will break these blocks on sight even when not stuck.
   torch-hunt-radius: 3

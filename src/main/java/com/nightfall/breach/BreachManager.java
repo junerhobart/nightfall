@@ -264,30 +264,38 @@ public class BreachManager {
                         boolean losBlocked = !mob.hasLineOfSight(target);
                         boolean isStuck = mem.getStuckTickCount() >= cfg.stuckTicks;
                         if (isStuck || losBlocked) {
-                            candidate = findCandidate(mob, target);
-                            if (candidate != null && mem.isFailed(candidate)) {
-                                candidate = tryOffsetCandidate(mob, target, mem);
+                                candidate = findCandidate(mob, target);
+                                if (candidate != null && mem.isFailed(candidate)) {
+                                    candidate = tryOffsetCandidate(mob, target, mem);
+                                }
+                                if (candidate != null
+                                        && mob.getLocation().distanceSquared(candidate.getLocation()) > reachSq) {
+                                    candidate = null;
+                                }
+                                // Don't reach blocks more than 2 above feet level
+                                if (candidate != null
+                                        && candidate.getY() - mob.getLocation().getBlockY() > 2) {
+                                    candidate = null;
+                                }
                             }
-                            if (candidate != null
-                                    && mob.getLocation().distanceSquared(candidate.getLocation()) > reachSq) {
-                                candidate = null;
-                            }
-                        }
                     }
                 }
 
                 if (candidate == null) continue;
 
-                int tier = cfg.getTierForBlock(candidate.getType());
-                if (tier < 0) continue;
-                NightfallConfig.TierConfig tierCfg = cfg.tiers.get(tier);
-                if (tierCfg == null || !tierCfg.enabled()) continue;
-                if (!canMobBreachTier(mob, tierCfg)) continue;
+                // Torch hunt blocks bypass the tier system -- always allowed, always 1 tick
+                if (!isTorchHunt) {
+                    int tier = cfg.getTierForBlock(candidate.getType());
+                    if (tier < 0) continue;
+                    NightfallConfig.TierConfig tierCfg = cfg.tiers.get(tier);
+                    if (tierCfg == null || !tierCfg.enabled()) continue;
+                    if (!canMobBreachTier(mob, tierCfg)) continue;
+                }
 
                 long chunkKey = chunkKey(candidate.getChunk());
                 if (chunkBreaks.getOrDefault(chunkKey, 0) >= cfg.maxChunkBreaksPerNight) continue;
 
-                int breakTicks = cfg.getBreakTicksForMaterial(candidate.getType());
+                int breakTicks = isTorchHunt ? 1 : cfg.getBreakTicksForMaterial(candidate.getType());
                 long bKey = blockKey(candidate);
 
                 // Join an existing breach on this block, or start a new one
@@ -360,13 +368,11 @@ public class BreachManager {
             return;
         }
 
-        // Find a target using the same stuck/LOS trigger
+        // Only trigger when the creeper literally can't see the player -- don't redirect
+        // when just slow (isStuck fires immediately on creepers since they move slowly)
         if (!(mob.getTarget() instanceof Player player) || !player.isOnline()) return;
         if (!isPlayerNear(mob.getLocation(), cfg.breachTriggerRadius)) return;
-
-        boolean isStuck = mem.getStuckTickCount() >= cfg.stuckTicks;
-        boolean losBlocked = !mob.hasLineOfSight(player);
-        if (!isStuck && !losBlocked) return;
+        if (mob.hasLineOfSight(player)) return;
 
         Block candidate = findCandidate(mob, player);
         if (candidate == null) return;
@@ -378,30 +384,11 @@ public class BreachManager {
     }
 
     /**
-     * Follower breach role (skeletons, strays): don't break blocks, but flock
-     * toward the nearest active breach so they support the mob pushing through.
-     * Falls back to vanilla AI when no breach is active.
+     * Follower role (skeletons, strays): no block breaking, vanilla AI handles combat.
+     * Keeping this method so the role is recognised and excluded from breaker logic.
      */
     private void handleFollowerTick(Mob mob, NightfallConfig cfg) {
-        if (blockBreaches.isEmpty()) return;
-
-        Location mobLoc = mob.getLocation();
-        double radiusSq = cfg.followerRadius * cfg.followerRadius;
-        Location target = null;
-        double bestDist = radiusSq;
-
-        for (BlockBreach breach : blockBreaches.values()) {
-            if (!breach.getBlock().getWorld().equals(mob.getWorld())) continue;
-            double dist = mobLoc.distanceSquared(breach.getBlock().getLocation());
-            if (dist < bestDist) {
-                bestDist = dist;
-                target = breach.getBlock().getLocation().add(0.5, 0, 0.5);
-            }
-        }
-
-        if (target != null) {
-            try { mob.getPathfinder().moveTo(target, 1.0); } catch (Exception ignored) {}
-        }
+        // Intentionally empty -- vanilla AI handles movement and shooting.
     }
 
     // -------------------------------------------------------------------------
@@ -564,9 +551,11 @@ public class BreachManager {
     private boolean isBreachable(Block block, NightfallConfig cfg) {
         Material mat = block.getType();
         if (mat.isAir()) return false;
-        if (mat.getHardness() < 0) return false;
         if (cfg.protectedBlocks.contains(mat)) return false;
         if (cfg.protectContainers && isContainer(block)) return false;
+        // Torch hunt materials are always breakable regardless of tier/hardness
+        if (cfg.torchHuntBlocks.contains(mat)) return true;
+        if (mat.getHardness() < 0) return false;
         return cfg.getTierForBlock(mat) >= 0;
     }
 
