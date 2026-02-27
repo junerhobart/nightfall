@@ -46,7 +46,6 @@ public final class NightfallPlugin extends JavaPlugin {
         siegeManager.startTasks();
         breachManager.startTasks();
 
-        getLogger().info("Nightfall enabled.");
     }
 
     @Override
@@ -54,7 +53,6 @@ public final class NightfallPlugin extends JavaPlugin {
         if (breachManager != null) breachManager.shutdown();
         if (siegeManager != null) siegeManager.shutdown();
         if (heatManager != null) heatManager.shutdown();
-        getLogger().info("Nightfall disabled.");
     }
 
     public void reload() {

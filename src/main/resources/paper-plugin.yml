@@ -1,15 +1,15 @@
 name: Nightfall
-version: '1.0'
+version: '${project.version}'
 main: com.nightfall.main.NightfallPlugin
-api-version: '1.21.11'
+api-version: '1.21'
 description: Makes Minecraft night genuinely dangerous.
-authors: [Nightfall]
-website: ''
+authors:
+  - Nightfall
 
 commands:
   nightfall:
     description: Nightfall admin commands.
-    usage: /nightfall <reload|debug>
+    usage: /nightfall <reload|debug|status>
     permission: nightfall.admin
 
 permissions:

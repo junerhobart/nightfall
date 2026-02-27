@@ -58,6 +58,11 @@ public class MobMemory {
         breaksThisChase++;
     }
 
+    /** Torch-hunt breaks count toward the nightly cap but not the per-chase cap. */
+    public void recordTorchBreak() {
+        breaksThisNight++;
+    }
+
     /**
      * Call each stuckCheckTick with the mob's current location.
      * Returns the updated stuck tick count (incremented if mob hasn't moved > 0.5 blocks).

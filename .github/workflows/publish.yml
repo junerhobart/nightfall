@@ -8,6 +8,10 @@ on:
       version:
         description: Version tag (e.g. 1.2)
         required: true
+      changelog:
+        description: Release notes
+        required: false
+        default: ''
 
 jobs:
   publish:
@@ -17,7 +21,7 @@ jobs:
       VERSION: ${{ github.event.release.tag_name || inputs.version }}
       RELEASE_URL: ${{ github.event.release.html_url || '' }}
       RELEASE_NAME: ${{ github.event.release.name || inputs.version }}
-      CHANGELOG: ${{ github.event.release.body || '' }}
+      CHANGELOG: ${{ github.event.release.body || inputs.changelog || '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -51,20 +55,20 @@ jobs:
         continue-on-error: true
         run: |
           python3 -c "
-          import urllib.request, json, os, sys, glob
+          import urllib.request, json, os, sys
           webhook = os.environ.get('DISCORD_WEBHOOK', '').strip()
           if not webhook:
             print('No webhook configured, skipping.')
             sys.exit(0)
           changelog = os.environ.get('CHANGELOG', '').strip()
-          release_url = os.environ.get('RELEASE_URL', '').strip() or 'https://github.com/\${{ github.repository }}/releases'
+          release_url = os.environ.get('RELEASE_URL', '').strip() or 'https://github.com/junerhobart/Nightfall/releases'
           version = os.environ.get('VERSION', '')
           project_name = 'Nightfall'
           parts = [f'**{project_name} {version} has been released!**']
           if changelog:
             parts.append(changelog)
           links = [f'<{release_url}>']
-          for key in ['MODRINTH_PAGE_URL']:  # hardcoded above in env
+          for key in ['MODRINTH_PAGE_URL']:
             val = os.environ.get(key, '').strip()
             if val:
               links.append(f'<{val}>')
@@ -72,8 +76,25 @@ jobs:
           content = (chr(10) + chr(10)).join(parts)
           thread_id = os.environ.get('DISCORD_THREAD_ID', '').strip()
           url = webhook + ('&' if '?' in webhook else '?') + 'thread_id=' + thread_id if thread_id else webhook
-          body = json.dumps({'content': content}).encode()
-          headers = {'Content-Type': 'application/json', 'User-Agent': 'Nightfall-GitHubAction/1.0'}
+          jar_path = f'target/Nightfall-{version}.jar'
+          boundary = b'----NightfallWebhookBoundary'
+          payload_json = json.dumps({'content': content}).encode()
+          body = b''
+          body += b'--' + boundary + b'\r\n'
+          body += b'Content-Disposition: form-data; name=\"payload_json\"\r\n'
+          body += b'Content-Type: application/json\r\n\r\n'
+          body += payload_json + b'\r\n'
+          if os.path.exists(jar_path):
+            filename = os.path.basename(jar_path).encode()
+            with open(jar_path, 'rb') as f:
+              file_data = f.read()
+            body += b'--' + boundary + b'\r\n'
+            body += b'Content-Disposition: form-data; name=\"files[0]\"; filename=\"' + filename + b'\"\r\n'
+            body += b'Content-Type: application/java-archive\r\n\r\n'
+            body += file_data + b'\r\n'
+            print(f'Attaching {jar_path} ({len(file_data)} bytes)')
+          body += b'--' + boundary + b'--\r\n'
+          headers = {'Content-Type': f'multipart/form-data; boundary={boundary.decode()}', 'User-Agent': 'Nightfall-GitHubAction/1.0'}
           req = urllib.request.Request(url, data=body, headers=headers)
           try:
             res = urllib.request.urlopen(req)

@@ -1,6 +1,5 @@
 package com.nightfall.command;
 
-import com.nightfall.breach.BreachEntry;
 import com.nightfall.main.NightfallPlugin;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -11,8 +10,6 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 
 public class NightfallCommand implements CommandExecutor, TabCompleter {
 
@@ -66,8 +63,8 @@ public class NightfallCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage(Component.text("  " + world.getName() + ": "
                 + (night ? "NIGHT" : "day"), night ? NamedTextColor.DARK_RED : NamedTextColor.AQUA));
         }
-        Map<UUID, BreachEntry> breaches = plugin.getBreachManager().getActiveBreaches();
-        sender.sendMessage(Component.text("  Active breaches: " + breaches.size(), NamedTextColor.YELLOW));
+        sender.sendMessage(Component.text("  Active breaches: " + plugin.getBreachManager().getActiveBreachCount()
+                + " blocks, " + plugin.getBreachManager().getActiveMobCount() + " mobs", NamedTextColor.YELLOW));
         sender.sendMessage(Component.text("  Debug: " + plugin.getNfConfig().debug, NamedTextColor.GRAY));
     }
 
