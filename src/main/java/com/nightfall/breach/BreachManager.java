@@ -505,9 +505,16 @@ public class BreachManager {
         return null;
     }
 
+    private static final org.bukkit.block.BlockFace[] CARDINAL_FACES = {
+        org.bukkit.block.BlockFace.NORTH, org.bukkit.block.BlockFace.SOUTH,
+        org.bukkit.block.BlockFace.EAST,  org.bukkit.block.BlockFace.WEST,
+        org.bukkit.block.BlockFace.UP,    org.bukkit.block.BlockFace.DOWN
+    };
+
     /**
      * Raytrace in the mob's facing direction (no player target needed).
-     * Short range -- only checks directly in front of the mob.
+     * Checks the first hit block AND its faces -- wall torches are always
+     * mounted on the solid block the raytrace hits, not the torch itself.
      */
     private Block findCandidateInFacingDir(Mob mob, Set<Material> materials) {
         Location eyeLoc = mob.getEyeLocation();
@@ -515,15 +522,12 @@ public class BreachManager {
         RayTraceResult result = mob.getWorld().rayTraceBlocks(eyeLoc, direction, 4.0,
                 org.bukkit.FluidCollisionMode.NEVER, false);
         if (result == null || result.getHitBlock() == null) return null;
-        Block hit = result.getHitBlock();
-        if (!materials.contains(hit.getType())) return null;
-        if (!isBreachable(hit, plugin.getNfConfig())) return null;
-        return hit;
+        return torchOnOrAdjacentTo(result.getHitBlock(), materials);
     }
 
     /**
-     * Raytrace from mob eyes toward the player. If the first block hit is in
-     * {@code materials} and is breachable, return it. Used for torch-in-path detection.
+     * Raytrace from mob eyes toward the player. Checks the first hit block AND
+     * its faces for attached torches/light sources.
      */
     private Block findCandidateInPath(Mob mob, Player target, Set<Material> materials) {
         Location eyeLoc = mob.getEyeLocation();
@@ -533,10 +537,18 @@ public class BreachManager {
         RayTraceResult result = mob.getWorld().rayTraceBlocks(eyeLoc, direction, distance + 1,
                 org.bukkit.FluidCollisionMode.NEVER, false);
         if (result == null || result.getHitBlock() == null) return null;
-        Block hit = result.getHitBlock();
-        if (!materials.contains(hit.getType())) return null;
-        if (!isBreachable(hit, plugin.getNfConfig())) return null;
-        return hit;
+        return torchOnOrAdjacentTo(result.getHitBlock(), materials);
+    }
+
+    /** Returns the hit block if it's a torch, otherwise checks all six faces for one. */
+    private Block torchOnOrAdjacentTo(Block hit, Set<Material> materials) {
+        NightfallConfig cfg = plugin.getNfConfig();
+        if (materials.contains(hit.getType()) && isBreachable(hit, cfg)) return hit;
+        for (org.bukkit.block.BlockFace face : CARDINAL_FACES) {
+            Block adj = hit.getRelative(face);
+            if (materials.contains(adj.getType()) && isBreachable(adj, cfg)) return adj;
+        }
+        return null;
     }
 
     private int countMobsNear(Location loc, double radius, Mob exclude) {
