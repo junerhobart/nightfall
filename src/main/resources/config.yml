@@ -222,14 +222,5 @@ breach:
   # Memory: how long (seconds) a mob remembers a failed candidate block.
   failed-block-cooldown-seconds: 15
 
-# ── Ward Protection ──────────────────────────────────────────────────────────
-ward:
-  enabled: true
-  block-type: CRYING_OBSIDIAN
-  # Radius (blocks) protected around each ward block.
-  radius: 8
-  # How often (seconds) to refresh ward cache for each loaded chunk.
-  refresh-interval-seconds: 120
-
 # ── Debug ────────────────────────────────────────────────────────────────────
 debug: false

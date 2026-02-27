@@ -18,18 +18,12 @@ public class BlockEventListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent event) {
         if (!plugin.getNfConfig().isWorldEnabled(event.getPlayer().getWorld().getName())) return;
-        // Update ward cache if a ward block was removed
-        plugin.getWardManager().onBlockBroken(event.getBlock());
-        // Add heat
         plugin.getHeatManager().addPlayerHeat(event.getPlayer(), plugin.getNfConfig().heatBlockBreak);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockPlace(BlockPlaceEvent event) {
         if (!plugin.getNfConfig().isWorldEnabled(event.getPlayer().getWorld().getName())) return;
-        // Update ward cache if a ward block was placed
-        plugin.getWardManager().onBlockPlaced(event.getBlockPlaced());
-        // Add heat
         plugin.getHeatManager().addPlayerHeat(event.getPlayer(), plugin.getNfConfig().heatBlockPlace);
     }
 }

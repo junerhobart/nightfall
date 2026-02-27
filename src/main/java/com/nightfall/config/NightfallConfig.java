@@ -57,12 +57,6 @@ public class NightfallConfig {
     public int maxNewBreachesPerSecond;
     public long failedBlockCooldownMillis;
 
-    // Ward
-    public boolean wardEnabled;
-    public Material wardBlockType;
-    public double wardRadius;
-    public long wardRefreshMillis;
-
     // Debug
     public boolean debug;
 
@@ -128,11 +122,6 @@ public class NightfallConfig {
         maxNewBreachesPerSecond = c.getInt("breach.max-new-breaches-per-second", 6);
         failedBlockCooldownMillis = c.getLong("breach.failed-block-cooldown-seconds", 15) * 1000L;
 
-        wardEnabled = c.getBoolean("ward.enabled", true);
-        wardBlockType = parseMaterial(c.getString("ward.block-type", "CRYING_OBSIDIAN"), Material.CRYING_OBSIDIAN);
-        wardRadius = c.getDouble("ward.radius", 8.0);
-        wardRefreshMillis = c.getLong("ward.refresh-interval-seconds", 120) * 1000L;
-
         debug = c.getBoolean("debug", false);
     }
 
@@ -147,11 +136,6 @@ public class NightfallConfig {
             }
         }
         return set;
-    }
-
-    private Material parseMaterial(String name, Material fallback) {
-        Material m = Material.matchMaterial(name);
-        return m != null ? m : fallback;
     }
 
     public boolean isWorldEnabled(String worldName) {

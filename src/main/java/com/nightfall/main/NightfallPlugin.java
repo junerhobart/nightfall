@@ -9,7 +9,6 @@ import com.nightfall.listeners.CombatListener;
 import com.nightfall.listeners.PlayerActivityListener;
 import com.nightfall.listeners.WorldListener;
 import com.nightfall.siege.SiegeManager;
-import com.nightfall.ward.WardManager;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class NightfallPlugin extends JavaPlugin {
@@ -18,7 +17,6 @@ public final class NightfallPlugin extends JavaPlugin {
 
     private NightfallConfig nfConfig;
     private HeatManager heatManager;
-    private WardManager wardManager;
     private SiegeManager siegeManager;
     private BreachManager breachManager;
 
@@ -29,7 +27,6 @@ public final class NightfallPlugin extends JavaPlugin {
 
         nfConfig = new NightfallConfig(this);
         heatManager = new HeatManager(this);
-        wardManager = new WardManager(this);
         siegeManager = new SiegeManager(this);
         breachManager = new BreachManager(this);
 
@@ -48,7 +45,6 @@ public final class NightfallPlugin extends JavaPlugin {
         heatManager.startTasks();
         siegeManager.startTasks();
         breachManager.startTasks();
-        wardManager.startTasks();
 
         getLogger().info("Nightfall enabled.");
     }
@@ -58,7 +54,6 @@ public final class NightfallPlugin extends JavaPlugin {
         if (breachManager != null) breachManager.shutdown();
         if (siegeManager != null) siegeManager.shutdown();
         if (heatManager != null) heatManager.shutdown();
-        if (wardManager != null) wardManager.shutdown();
         getLogger().info("Nightfall disabled.");
     }
 
@@ -66,7 +61,6 @@ public final class NightfallPlugin extends JavaPlugin {
         reloadConfig();
         nfConfig.reload();
         heatManager.reload();
-        wardManager.reload();
         siegeManager.reload();
         breachManager.reload();
     }
@@ -74,7 +68,6 @@ public final class NightfallPlugin extends JavaPlugin {
     public static NightfallPlugin getInstance() { return instance; }
     public NightfallConfig getNfConfig() { return nfConfig; }
     public HeatManager getHeatManager() { return heatManager; }
-    public WardManager getWardManager() { return wardManager; }
     public SiegeManager getSiegeManager() { return siegeManager; }
     public BreachManager getBreachManager() { return breachManager; }
 }

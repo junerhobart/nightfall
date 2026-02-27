@@ -3,7 +3,6 @@ package com.nightfall.breach;
 import com.nightfall.config.NightfallConfig;
 import com.nightfall.heat.HeatManager;
 import com.nightfall.main.NightfallPlugin;
-import com.nightfall.ward.WardManager;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -257,8 +256,6 @@ public class BreachManager {
                 Block candidate = findCandidate(mob, target);
                 if (candidate == null) continue;
 
-                if (plugin.getWardManager().isProtected(candidate.getLocation())) continue;
-
                 if (mem.isFailed(candidate)) {
                     // Try offset raytraces
                     candidate = tryOffsetCandidate(mob, target, mem);
@@ -353,7 +350,6 @@ public class BreachManager {
             Block hit = result.getHitBlock();
             if (!isBreachable(hit, cfg)) continue;
             if (mem.isFailed(hit)) continue;
-            if (plugin.getWardManager().isProtected(hit.getLocation())) continue;
             return hit;
         }
         return null;

@@ -5,3 +5,6 @@ target/
 *.jar
 !icon.png
 .DS_Store
+
+# Local AI context (never commit)
+.context/
