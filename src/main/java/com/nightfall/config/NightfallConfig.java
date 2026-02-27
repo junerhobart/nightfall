@@ -36,7 +36,6 @@ public class NightfallConfig {
     public boolean lightAttractionEnabled;
     public double lightScanRadius;
     public Set<Material> lightBlocks;
-    public boolean torchHate;
 
     // Breach
     public boolean breachEnabled;
@@ -93,8 +92,6 @@ public class NightfallConfig {
         lightAttractionEnabled = c.getBoolean("light-attraction.enabled", true);
         lightScanRadius = c.getDouble("light-attraction.scan-radius", 20.0);
         lightBlocks = parseMaterials(c.getStringList("light-attraction.light-blocks"));
-        torchHate = c.getBoolean("light-attraction.torch-hate", true);
-
         breachEnabled = c.getBoolean("breach.enabled", true);
         breachTriggerRadius = c.getDouble("breach.trigger-radius", 24.0);
         stuckTicks = c.getInt("breach.stuck-ticks", 40);

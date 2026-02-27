@@ -58,10 +58,6 @@ light-attraction:
     - SHROOMLIGHT
     - LIGHT
     - CAMPFIRE
-  # If a raytrace to the target is blocked by a light block and this is true,
-  # the mob will prioritize breaking that block first.
-  torch-hate: true
-
 # ── Breach (Block Breaking) ──────────────────────────────────────────────────
 breach:
   enabled: true
