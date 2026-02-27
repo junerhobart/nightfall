@@ -6,6 +6,7 @@ target/
 !icon.png
 .DS_Store
 testing-server/
+deploy.sh
 
 # Local AI context (never commit)
 .context/

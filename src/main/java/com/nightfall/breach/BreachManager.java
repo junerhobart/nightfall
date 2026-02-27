@@ -128,7 +128,7 @@ public class BreachManager {
                 continue;
             }
 
-            if (!isPlayerNear(block.getLocation(), cfg.breachTriggerRadius)) {
+            if (!breach.isTorchHunt() && !isPlayerNear(block.getLocation(), cfg.breachTriggerRadius)) {
                 cancelVisual(block);
                 for (UUID id : breach.getParticipants()) releaseMob(id);
                 it.remove();
