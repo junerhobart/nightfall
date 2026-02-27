@@ -9,6 +9,8 @@ import com.nightfall.listeners.CombatListener;
 import com.nightfall.listeners.PlayerActivityListener;
 import com.nightfall.listeners.WorldListener;
 import com.nightfall.siege.SiegeManager;
+import io.papermc.paper.command.brigadier.Commands;
+import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class NightfallPlugin extends JavaPlugin {
@@ -30,23 +32,31 @@ public final class NightfallPlugin extends JavaPlugin {
         siegeManager = new SiegeManager(this);
         breachManager = new BreachManager(this);
 
-        // Register listeners
         getServer().getPluginManager().registerEvents(new BlockEventListener(this), this);
         getServer().getPluginManager().registerEvents(new CombatListener(this), this);
         getServer().getPluginManager().registerEvents(new PlayerActivityListener(this), this);
         getServer().getPluginManager().registerEvents(new WorldListener(), this);
 
-        // Register command
         NightfallCommand cmd = new NightfallCommand(this);
-        getCommand("nightfall").setExecutor(cmd);
-        getCommand("nightfall").setTabCompleter(cmd);
+        getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> {
+            event.registrar().register(
+                Commands.literal("nightfall")
+                    .requires(src -> src.getSender().hasPermission("nightfall.admin"))
+                    .executes(ctx -> { cmd.execute(ctx.getSource().getSender(), new String[0]); return 1; })
+                    .then(Commands.literal("reload")
+                        .executes(ctx -> { cmd.execute(ctx.getSource().getSender(), new String[]{"reload"}); return 1; }))
+                    .then(Commands.literal("debug")
+                        .executes(ctx -> { cmd.execute(ctx.getSource().getSender(), new String[]{"debug"}); return 1; }))
+                    .then(Commands.literal("status")
+                        .executes(ctx -> { cmd.execute(ctx.getSource().getSender(), new String[]{"status"}); return 1; }))
+                    .build(),
+                "Nightfall admin commands."
+            );
+        });
 
-        // Start tasks
         heatManager.startTasks();
         siegeManager.startTasks();
         breachManager.startTasks();
-
-        getLogger().info("Nightfall enabled.");
     }
 
     @Override
@@ -54,7 +64,6 @@ public final class NightfallPlugin extends JavaPlugin {
         if (breachManager != null) breachManager.shutdown();
         if (siegeManager != null) siegeManager.shutdown();
         if (heatManager != null) heatManager.shutdown();
-        getLogger().info("Nightfall disabled.");
     }
 
     public void reload() {

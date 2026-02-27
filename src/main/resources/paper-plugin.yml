@@ -1,0 +1,7 @@
+name: Nightfall
+version: '${project.version}'
+main: com.nightfall.main.NightfallPlugin
+api-version: '1.21'
+description: Makes Minecraft night genuinely dangerous.
+authors:
+  - Nightfall

@@ -1,6 +1,7 @@
 package com.nightfall.siege;
 
 import com.nightfall.heat.HeatManager;
+import com.nightfall.heat.HeatNode;
 import com.nightfall.main.NightfallPlugin;
 import org.bukkit.Location;
 import org.bukkit.Material;

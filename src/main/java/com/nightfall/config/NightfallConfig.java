@@ -48,6 +48,12 @@ public class NightfallConfig {
     public Set<Material> protectedBlocks;
     public boolean protectContainers;
     public Map<Integer, TierConfig> tiers;
+    public double maxBreachReach;
+    public int torchHuntRadius;
+    public Set<Material> torchHuntBlocks;
+    public double hardnessMultiplier;
+    public int minBreakTicks;
+    public int maxBreakTicks;
     public int maxBreaksPerNight;
     public int maxBreaksPerChase;
     public int maxChunkBreaksPerNight;
@@ -60,7 +66,12 @@ public class NightfallConfig {
     public boolean debug;
 
     public enum RequiredTool { NONE, AXE, PICKAXE }
-    public record TierConfig(boolean enabled, int breakTicks, Set<Material> blocks, RequiredTool requiredTool) {}
+
+    /**
+     * A tier is a hardness band: any block with hardness in (prevTier.maxHardness, this.maxHardness]
+     * falls into this tier. Break ticks are computed from hardness * multiplier, not stored here.
+     */
+    public record TierConfig(boolean enabled, double maxHardness, RequiredTool requiredTool) {}
 
     public NightfallConfig(NightfallPlugin plugin) {
         this.plugin = plugin;
@@ -111,16 +122,23 @@ public class NightfallConfig {
                     int tier = Integer.parseInt(key);
                     String path = "breach.tiers." + tier;
                     boolean en = c.getBoolean(path + ".enabled", true);
-                    int bt = c.getInt(path + ".break-ticks", 60);
-                    Set<Material> blocks = parseMaterials(c.getStringList(path + ".blocks"));
+                    double maxH = c.getDouble(path + ".max-hardness", 2.0);
                     String toolStr = c.getString(path + ".required-tool", "none").toUpperCase();
                     RequiredTool tool;
                     try { tool = RequiredTool.valueOf(toolStr); }
                     catch (IllegalArgumentException ex) { tool = RequiredTool.NONE; }
-                    tiers.put(tier, new TierConfig(en, bt, blocks, tool));
+                    tiers.put(tier, new TierConfig(en, maxH, tool));
                 } catch (NumberFormatException ignored) {}
             }
         }
+
+        hardnessMultiplier = c.getDouble("breach.hardness-multiplier", 30.0);
+        minBreakTicks = c.getInt("breach.min-break-ticks", 1);
+        maxBreakTicks = c.getInt("breach.max-break-ticks", 300);
+
+        maxBreachReach = c.getDouble("breach.max-reach-distance", 4.0);
+        torchHuntRadius = c.getInt("breach.torch-hunt-radius", 3);
+        torchHuntBlocks = parseMaterials(c.getStringList("breach.torch-hunt-blocks"));
 
         maxBreaksPerNight = c.getInt("breach.max-breaks-per-night", 8);
         maxBreaksPerChase = c.getInt("breach.max-breaks-per-chase", 3);
@@ -150,13 +168,31 @@ public class NightfallConfig {
         return enabledWorlds.isEmpty() || enabledWorlds.contains(worldName);
     }
 
+    /**
+     * Returns the tier index for a material based on its hardness, or -1 if not breachable.
+     * Picks the lowest-numbered tier whose max-hardness >= block hardness.
+     */
     public int getTierForBlock(Material material) {
-        int best = -1;
+        float h = material.getHardness();
+        if (h < 0) return -1; // unbreakable (bedrock, barrier, etc.)
+        int bestTier = -1;
+        double bestMax = Double.MAX_VALUE;
         for (Map.Entry<Integer, TierConfig> e : tiers.entrySet()) {
-            if (e.getValue().enabled() && e.getValue().blocks().contains(material)) {
-                if (best == -1 || e.getKey() < best) best = e.getKey();
+            TierConfig tc = e.getValue();
+            if (!tc.enabled()) continue;
+            if (h <= tc.maxHardness() && tc.maxHardness() < bestMax) {
+                bestMax = tc.maxHardness();
+                bestTier = e.getKey();
             }
         }
-        return best;
+        return bestTier;
+    }
+
+    /** Break ticks derived from block hardness. Clamped to [minBreakTicks, maxBreakTicks]. */
+    public int getBreakTicksForMaterial(Material material) {
+        float h = material.getHardness();
+        if (h <= 0) return minBreakTicks;
+        int ticks = (int) Math.round(h * hardnessMultiplier);
+        return Math.max(minBreakTicks, Math.min(maxBreakTicks, ticks));
     }
 }
