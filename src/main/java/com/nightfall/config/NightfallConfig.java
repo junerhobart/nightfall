@@ -3,6 +3,7 @@ package com.nightfall.config;
 import com.nightfall.main.NightfallPlugin;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.entity.EntityType;
 
 import java.util.*;
 import java.util.logging.Level;
@@ -61,6 +62,13 @@ public class NightfallConfig {
     public int maxBreakTicksPerTick;
     public int maxNewBreachesPerSecond;
     public long failedBlockCooldownMillis;
+
+    // Mob roles
+    public Set<EntityType> breakerMobs;
+    public Set<EntityType> followerMobs;
+    public Set<EntityType> exploderMobs;
+    public double followerRadius;
+    public double exploderTriggerRadius;
 
     // Debug
     public boolean debug;
@@ -148,7 +156,25 @@ public class NightfallConfig {
         maxNewBreachesPerSecond = c.getInt("breach.max-new-breaches-per-second", 6);
         failedBlockCooldownMillis = c.getLong("breach.failed-block-cooldown-seconds", 15) * 1000L;
 
+        breakerMobs = parseEntityTypes(c.getStringList("breach.mob-roles.breakers"));
+        followerMobs = parseEntityTypes(c.getStringList("breach.mob-roles.followers"));
+        exploderMobs = parseEntityTypes(c.getStringList("breach.mob-roles.exploders"));
+        followerRadius = c.getDouble("breach.follower-radius", 32.0);
+        exploderTriggerRadius = c.getDouble("breach.exploder-trigger-radius", 3.0);
+
         debug = c.getBoolean("debug", false);
+    }
+
+    private Set<EntityType> parseEntityTypes(List<String> names) {
+        Set<EntityType> set = new HashSet<>();
+        for (String name : names) {
+            try {
+                set.add(EntityType.valueOf(name.toUpperCase()));
+            } catch (IllegalArgumentException e) {
+                plugin.getLogger().warning("Unknown entity type in config: " + name);
+            }
+        }
+        return set;
     }
 
     private Set<Material> parseMaterials(List<String> names) {

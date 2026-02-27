@@ -9,6 +9,7 @@ import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.entity.Creeper;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
@@ -32,6 +33,9 @@ public class BreachManager {
 
     // Per-mob memory
     private final Map<UUID, MobMemory> mobMemories = new ConcurrentHashMap<>();
+
+    // Creepers navigating toward an explosion target
+    private final Map<UUID, Location> creeperTargets = new ConcurrentHashMap<>();
 
     // Per-chunk break count this night
     private final Map<Long, Integer> chunkBreaks = new ConcurrentHashMap<>();
@@ -59,6 +63,7 @@ public class BreachManager {
         mobBreachTarget.clear();
         mobMemories.clear();
         chunkBreaks.clear();
+        creeperTargets.clear();
     }
 
     public void reload() {
@@ -85,6 +90,11 @@ public class BreachManager {
             for (UUID id : breach.getParticipants()) releaseMob(id);
             it.remove();
         }
+        // Clear creeper assignments for this world
+        creeperTargets.keySet().removeIf(id -> {
+            Entity e = plugin.getServer().getEntity(id);
+            return e == null || e.getWorld().equals(world);
+        });
     }
 
     // -------------------------------------------------------------------------
@@ -206,6 +216,18 @@ public class BreachManager {
 
                 mem.updateStuck(mob.getLocation());
 
+                // Route by mob role
+                if (!cfg.exploderMobs.isEmpty() && cfg.exploderMobs.contains(mob.getType())) {
+                    handleCreeperTick(mob, mem, cfg);
+                    continue;
+                }
+                if (!cfg.followerMobs.isEmpty() && cfg.followerMobs.contains(mob.getType())) {
+                    handleFollowerTick(mob, cfg);
+                    continue;
+                }
+                // If a breaker list is configured, only those mobs break blocks
+                if (!cfg.breakerMobs.isEmpty() && !cfg.breakerMobs.contains(mob.getType())) continue;
+
                 if (mem.isCurrentlyBreaching()) continue;
                 if (mem.getBreaksThisNight() >= cfg.maxBreaksPerNight) continue;
                 if (newBreachesThisSecond >= cfg.maxNewBreachesPerSecond) break;
@@ -279,6 +301,82 @@ public class BreachManager {
                             + (isTorchHunt ? " [torch-hunt]" : isStuck ? " [stuck]" : " [los]"));
                 }
             }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Role handlers
+    // -------------------------------------------------------------------------
+
+    /**
+     * Creeper breach role: navigate to the wall blocking the path and ignite.
+     * Uses the same stuck/LOS trigger as normal breach but replaces chipping
+     * with a full explosion, which clears multiple blocks at once.
+     */
+    private void handleCreeperTick(Mob mob, MobMemory mem, NightfallConfig cfg) {
+        if (!(mob instanceof Creeper creeper)) return;
+        UUID id = mob.getUniqueId();
+
+        // If fuse is already counting down (ignited naturally or by us), leave it alone
+        if (creeper.getFuseTicks() < creeper.getMaxFuseTicks()) {
+            creeperTargets.remove(id);
+            return;
+        }
+
+        Location target = creeperTargets.get(id);
+
+        if (target != null) {
+            double distSq = creeper.getLocation().distanceSquared(target);
+            if (distSq <= cfg.exploderTriggerRadius * cfg.exploderTriggerRadius) {
+                creeper.ignite();
+                creeperTargets.remove(id);
+            } else {
+                try { creeper.getPathfinder().moveTo(target, 1.1); } catch (Exception ignored) {}
+            }
+            return;
+        }
+
+        // Find a target using the same stuck/LOS trigger
+        if (!(mob.getTarget() instanceof Player player) || !player.isOnline()) return;
+        if (!isPlayerNear(mob.getLocation(), cfg.breachTriggerRadius)) return;
+
+        boolean isStuck = mem.getStuckTickCount() >= cfg.stuckTicks;
+        boolean losBlocked = !mob.hasLineOfSight(player);
+        if (!isStuck && !losBlocked) return;
+
+        Block candidate = findCandidate(mob, player);
+        if (candidate == null) return;
+
+        Location dest = candidate.getLocation().add(0.5, 0, 0.5);
+        creeperTargets.put(id, dest);
+        try { creeper.getPathfinder().moveTo(dest, 1.1); } catch (Exception ignored) {}
+        if (cfg.debug) plugin.getLogger().info("[Nightfall] Creeper targeting explosion @ " + candidate.getLocation().toVector());
+    }
+
+    /**
+     * Follower breach role (skeletons, strays): don't break blocks, but flock
+     * toward the nearest active breach so they support the mob pushing through.
+     * Falls back to vanilla AI when no breach is active.
+     */
+    private void handleFollowerTick(Mob mob, NightfallConfig cfg) {
+        if (blockBreaches.isEmpty()) return;
+
+        Location mobLoc = mob.getLocation();
+        double radiusSq = cfg.followerRadius * cfg.followerRadius;
+        Location target = null;
+        double bestDist = radiusSq;
+
+        for (BlockBreach breach : blockBreaches.values()) {
+            if (!breach.getBlock().getWorld().equals(mob.getWorld())) continue;
+            double dist = mobLoc.distanceSquared(breach.getBlock().getLocation());
+            if (dist < bestDist) {
+                bestDist = dist;
+                target = breach.getBlock().getLocation().add(0.5, 0, 0.5);
+            }
+        }
+
+        if (target != null) {
+            try { mob.getPathfinder().moveTo(target, 1.0); } catch (Exception ignored) {}
         }
     }
 

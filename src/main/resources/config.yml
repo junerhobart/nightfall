@@ -245,4 +245,33 @@ breach:
   max-new-breaches-per-second: 6
   failed-block-cooldown-seconds: 15
 
+  # Mob roles: controls which mobs do what during a siege.
+  # breakers: actively break blocks to path through.
+  # followers: skip block-breaking, instead flock toward active breaches.
+  # exploders: navigate to breach candidate and ignite to blast the wall open.
+  # Leave a list empty to disable that role entirely.
+  mob-roles:
+    breakers:
+      - ZOMBIE
+      - HUSK
+      - DROWNED
+      - ZOMBIE_VILLAGER
+      - WITHER_SKELETON
+      - GIANT
+      - VINDICATOR
+      - PILLAGER
+      - RAVAGER
+      - PIGLIN_BRUTE
+    followers:
+      - SKELETON
+      - STRAY
+      - BOGGED
+    exploders:
+      - CREEPER
+
+  # How close a follower mob will travel to join an active breach.
+  follower-radius: 32.0
+  # How close a creeper must get to the target block before igniting.
+  exploder-trigger-radius: 3.0
+
 debug: false
