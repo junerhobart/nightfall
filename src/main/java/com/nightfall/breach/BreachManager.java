@@ -242,36 +242,35 @@ public class BreachManager {
 
                 Block candidate = null;
                 boolean isTorchHunt = false;
-                boolean isStuck = false;
-                boolean losBlocked = false;
 
-                if (mob.getTarget() instanceof Player target && target.isOnline()
-                        && isPlayerNear(mob.getLocation(), cfg.breachTriggerRadius)) {
-
-                    // Torch in direct path: break instantly, no stuck requirement
-                    if (!cfg.torchHuntBlocks.isEmpty()) {
-                        Block torchInPath = findCandidateInPath(mob, target, cfg.torchHuntBlocks);
-                        if (torchInPath != null && !mem.isFailed(torchInPath)) {
-                            candidate = torchInPath;
-                            isTorchHunt = true;
-                        }
+                // Torch in path: no player target required.
+                // Use player direction when available, otherwise mob's own facing direction.
+                if (!cfg.torchHuntBlocks.isEmpty()) {
+                    Block torchInPath = (mob.getTarget() instanceof Player tp)
+                            ? findCandidateInPath(mob, tp, cfg.torchHuntBlocks)
+                            : findCandidateInFacingDir(mob, cfg.torchHuntBlocks);
+                    if (torchInPath != null && !mem.isFailed(torchInPath)) {
+                        candidate = torchInPath;
+                        isTorchHunt = true;
                     }
+                }
 
-                    // Normal wall-breach: only when stuck or LOS blocked
-                    if (candidate == null && mem.getBreaksThisChase() < cfg.maxBreaksPerChase) {
-                        int nearBreakers = countBreakersNear(target.getLocation(), cfg.breachTriggerRadius);
-                        if (nearBreakers < cfg.maxBreakersPerPlayer) {
-                            losBlocked = !mob.hasLineOfSight(target);
-                            isStuck = mem.getStuckTickCount() >= cfg.stuckTicks;
-                            if (isStuck || losBlocked) {
-                                candidate = findCandidate(mob, target);
-                                if (candidate != null && mem.isFailed(candidate)) {
-                                    candidate = tryOffsetCandidate(mob, target, mem);
-                                }
-                                if (candidate != null
-                                        && mob.getLocation().distanceSquared(candidate.getLocation()) > reachSq) {
-                                    candidate = null;
-                                }
+                // Wall-breach: only when targeting a player and stuck or LOS blocked
+                if (candidate == null && mob.getTarget() instanceof Player target && target.isOnline()
+                        && isPlayerNear(mob.getLocation(), cfg.breachTriggerRadius)
+                        && mem.getBreaksThisChase() < cfg.maxBreaksPerChase) {
+                    int nearBreakers = countBreakersNear(target.getLocation(), cfg.breachTriggerRadius);
+                    if (nearBreakers < cfg.maxBreakersPerPlayer) {
+                        boolean losBlocked = !mob.hasLineOfSight(target);
+                        boolean isStuck = mem.getStuckTickCount() >= cfg.stuckTicks;
+                        if (isStuck || losBlocked) {
+                            candidate = findCandidate(mob, target);
+                            if (candidate != null && mem.isFailed(candidate)) {
+                                candidate = tryOffsetCandidate(mob, target, mem);
+                            }
+                            if (candidate != null
+                                    && mob.getLocation().distanceSquared(candidate.getLocation()) > reachSq) {
+                                candidate = null;
                             }
                         }
                     }
@@ -308,7 +307,7 @@ public class BreachManager {
                     if (cfg.debug) plugin.getLogger().info("[Nightfall] Breach started: mob="
                             + mob.getType() + " block=" + candidate.getType()
                             + " @ " + candidate.getLocation().toVector()
-                            + (isTorchHunt ? " [torch-hunt]" : isStuck ? " [stuck]" : " [los]"));
+                            + (isTorchHunt ? " [torch-hunt]" : " [wall]"));
                 }
             }
         }
@@ -504,6 +503,22 @@ public class BreachManager {
             return hit;
         }
         return null;
+    }
+
+    /**
+     * Raytrace in the mob's facing direction (no player target needed).
+     * Short range -- only checks directly in front of the mob.
+     */
+    private Block findCandidateInFacingDir(Mob mob, Set<Material> materials) {
+        Location eyeLoc = mob.getEyeLocation();
+        Vector direction = eyeLoc.getDirection();
+        RayTraceResult result = mob.getWorld().rayTraceBlocks(eyeLoc, direction, 4.0,
+                org.bukkit.FluidCollisionMode.NEVER, false);
+        if (result == null || result.getHitBlock() == null) return null;
+        Block hit = result.getHitBlock();
+        if (!materials.contains(hit.getType())) return null;
+        if (!isBreachable(hit, plugin.getNfConfig())) return null;
+        return hit;
     }
 
     /**
