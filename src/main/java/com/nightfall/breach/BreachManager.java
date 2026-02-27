@@ -191,11 +191,11 @@ public class BreachManager {
             }
         }
 
-        // Break the block (no drops -- siege mobs aren't here for loot)
         block.getWorld().playSound(block.getLocation(), Sound.BLOCK_STONE_BREAK, 1.0f, 0.9f);
         block.getWorld().spawnParticle(Particle.BLOCK, block.getLocation().add(0.5, 0.5, 0.5),
                 20, 0.4, 0.4, 0.4, block.getBlockData());
-        block.setType(Material.AIR);
+        // breakNaturally with an iron pickaxe so all tiers drop their items (stone, logs, etc.)
+        block.breakNaturally(new org.bukkit.inventory.ItemStack(Material.IRON_PICKAXE));
 
         // Update counters
         long chunkKey = chunkKey(block.getChunk());
