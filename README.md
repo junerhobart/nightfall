@@ -80,3 +80,9 @@ mvn clean package
 ```
 
 Output goes to `target/Nightfall-1.02.jar`.
+
+## Discord
+
+If you want updates, feedback, or bug reports, join the Discord:
+
+[discord.gg/WQ628mcr4w](https://discord.gg/WQ628mcr4w)
